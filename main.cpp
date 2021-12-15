@@ -130,6 +130,27 @@ private:
 	int _mAngle;
 	int _mDistance;
 
+
+	int GetAngle() const
+	{
+		return _mAngle;
+	}
+
+	int GetDistance() const
+	{
+		return _mDistance;
+	}
+
+	void SetAngle(int aValue)
+	{
+		_mAngle = aValue;
+	}
+
+	void SetDistance(int aValue)
+	{
+		_mDistance = aValue;
+	}
+
 public:
 
 	Checkpoint(Vector2<int> aPosition, int aAngle, int aDistance) :
@@ -139,6 +160,18 @@ public:
 	{
 
 	}
+
+	Checkpoint(Checkpoint const&) = default;
+
+	Checkpoint& operator=(Checkpoint other)
+	{
+		_mAngle = other._mAngle;
+		_mDistance = other._mDistance;
+		return *this;
+	}
+
+	Property<int, Checkpoint> Angle{ this, &Checkpoint::SetAngle, &Checkpoint::GetAngle };
+	Property<int, Checkpoint> Distance{ this, &Checkpoint::SetDistance, &Checkpoint::GetDistance };
 };
 
 class Pod : public Entity
@@ -227,6 +260,9 @@ inline Vector2<int> StandardPodStrategy::ComputeNextPosition(const Pod& pod, con
 
 inline int StandardPodStrategy::ComputeNextThrust(const Pod& pod, const Checkpoint& aNextCheckpoint) const
 {
+	if (aNextCheckpoint.Angle > 90 || aNextCheckpoint.Angle < -90)
+		return 0;
+
 	return 100;
 }
 

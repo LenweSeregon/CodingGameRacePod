@@ -7,6 +7,10 @@ The game bring to wood 2 by following the step by step tutorial, correcting the 
 
 ### From Wood 2
 * My first step as stated in 14/12/2012 was to work on my base code architecture in order to make the code evolve faster afterwards
+* Simply including the algorithm tip provided by Coding games allowed me to pass to Wood 1, no much thinking there, simply add to add that part on my code architecture
+
+### From Wood 1
+
 
 ## Timeline
 
