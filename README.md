@@ -7,9 +7,12 @@ The game bring to wood 2 by following the step by step tutorial, correcting the 
 
 ### From Wood 2
 * My first step as stated in 14/12/2012 was to work on my base code architecture in order to make the code evolve faster afterwards
-* Simply including the algorithm tip provided by Coding games allowed me to pass to Wood 1, no much thinking there, simply add to add that part on my code architecture
+* Simply including the algorithm tip provided by Coding games allowed me to pass to Wood 1, no much reflection there, simply add to add that part on my code architecture
 
 ### From Wood 1
+* With access to BOOST, I've trivially enough add it to the code, ensuring the boost is available and that a certain distance (quite arbitrary, I set it to 100) is separating our pod to the next checkpoint in order to not waste boost
+
+### From Bronze
 
 
 ## Timeline

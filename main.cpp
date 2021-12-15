@@ -178,8 +178,29 @@ class Pod : public Entity
 {
 private:
 
+	bool _mBoostAvailable;
 	int _mThrust;
 	const PodStrategy* _mStrategy;
+
+	bool GetBoostAvailable() const
+	{
+		return _mBoostAvailable;
+	}
+
+	int GetThrust() const
+	{
+		return _mThrust;
+	}
+
+	void SetBoostAvailable(bool aValue)
+	{
+		_mBoostAvailable = aValue;
+	}
+
+	void SetThrust(int aValue)
+	{
+		_mThrust = aValue;
+	}
 
 public:
 
@@ -187,14 +208,17 @@ public:
 		Entity(aPosition),
 		_mThrust(aThrust)
 	{
-
+		_mBoostAvailable = true;
 	}
+
+	Property<bool, Pod> BoostAvailable{ this, &Pod::SetBoostAvailable, &Pod::GetBoostAvailable };
+	Property<int, Pod> Thrust{ this, &Pod::SetThrust, &Pod::GetThrust };
 
 	void UpdatePosition(Vector2<int> aPosition);
 	void UpdateStrategy(const PodStrategy& aStrategy);
 
-	Vector2<int> Move(const Checkpoint& aNextCheckpoint) const;
-	int Thrust(const Checkpoint& aNextCheckpoint) const;
+	Vector2<int> Move(const Checkpoint& aNextCheckpoint);
+	int Boost(const Checkpoint& aNextCheckpoint);
 
 };
 
@@ -209,22 +233,51 @@ public:
 
 	}
 
-	virtual Vector2<int> ComputeNextPosition(const Pod& pod, const Checkpoint& aNextCheckpoint) const = 0;
-	virtual int ComputeNextThrust(const Pod& pod, const Checkpoint& aNextCheckpoint) const = 0;
+	virtual Vector2<int> ComputeNextPosition(Pod& pod, const Checkpoint& aNextCheckpoint) const = 0;
+	virtual int ComputeNextBoost(Pod& pod, const Checkpoint& aNextCheckpoint) const = 0;
 };
 
 class StandardPodStrategy : public PodStrategy
 {
+private:
+
+	int _mThresholdHaltPercentage;
+	int _mThresholdDistanceBoost;
+
+	int GetThresholdHaltPercentage() const
+	{
+		return _mThresholdHaltPercentage;
+	}
+
+	int GetThresholdDistanceBoost() const
+	{
+		return _mThresholdDistanceBoost;
+	}
+
+	void SeThresholdHaltPercentage(int aValue)
+	{
+		_mThresholdHaltPercentage = aValue;
+	}
+
+	void SetThresholdDistanceBoost(int aValue)
+	{
+		_mThresholdDistanceBoost = aValue;
+	}
+
 public:
 
 	StandardPodStrategy() :
 		PodStrategy()
 	{
-
+		_mThresholdHaltPercentage = 10;
+		_mThresholdDistanceBoost = 100;
 	}
 
-	Vector2<int> ComputeNextPosition(const Pod& pod, const Checkpoint& aNextCheckpoint) const;
-	int ComputeNextThrust(const Pod& pod, const Checkpoint& aNextCheckpoint) const;
+	Property<int, StandardPodStrategy> ThresholdHaltPercentage{ this, &StandardPodStrategy::SeThresholdHaltPercentage, &StandardPodStrategy::GetThresholdHaltPercentage };
+	Property<int, StandardPodStrategy> ThresholdDistanceBoost{ this, &StandardPodStrategy::SetThresholdDistanceBoost, &StandardPodStrategy::GetThresholdDistanceBoost };
+
+	Vector2<int> ComputeNextPosition(Pod& pod, const Checkpoint& aNextCheckpoint) const;
+	int ComputeNextBoost(Pod& pod, const Checkpoint& aNextCheckpoint) const;
 };
 
 // ===================================
@@ -242,24 +295,30 @@ inline void Pod::UpdateStrategy(const PodStrategy& aStrategy)
 	_mStrategy = &aStrategy;
 }
 
-inline Vector2<int> Pod::Move(const Checkpoint &aNextCheckpoint) const
+inline Vector2<int> Pod::Move(const Checkpoint &aNextCheckpoint)
 {
 	return _mStrategy->ComputeNextPosition(*this, aNextCheckpoint);
 }
 
-inline int Pod::Thrust(const Checkpoint& aNextCheckpoint) const
+inline int Pod::Boost(const Checkpoint& aNextCheckpoint)
 {
-	return _mStrategy->ComputeNextThrust(*this, aNextCheckpoint);
+	return _mStrategy->ComputeNextBoost(*this, aNextCheckpoint);
 }
 
 // ==== Standard Pod Strategy ====
-inline Vector2<int> StandardPodStrategy::ComputeNextPosition(const Pod& pod, const Checkpoint& aNextCheckpoint) const
+inline Vector2<int> StandardPodStrategy::ComputeNextPosition(Pod& pod, const Checkpoint& aNextCheckpoint) const
 {
 	return { aNextCheckpoint.GetPosition().X, aNextCheckpoint.GetPosition().Y };
 }
 
-inline int StandardPodStrategy::ComputeNextThrust(const Pod& pod, const Checkpoint& aNextCheckpoint) const
+inline int StandardPodStrategy::ComputeNextBoost(Pod& pod, const Checkpoint& aNextCheckpoint) const
 {
+	if (aNextCheckpoint.Distance >= _mThresholdDistanceBoost && pod.BoostAvailable)
+	{
+		pod.BoostAvailable = false;
+		return -1;
+	}
+
 	if (aNextCheckpoint.Angle > 90 || aNextCheckpoint.Angle < -90)
 		return 0;
 
@@ -305,18 +364,20 @@ int main()
 		pod.UpdatePosition({ x, y });
 
 		Vector2<int> computedPosition = pod.Move(nextCheckpoint);
-		int computedThrust = pod.Thrust(nextCheckpoint);
+		int computedThrust = pod.Boost(nextCheckpoint);
 		// ============================
 
 		// Write an action using cout. DON'T FORGET THE "<< endl"
 		// To debug: cerr << "Debug messages..." << endl;
 
+		if (computedThrust == -1)
+		{
+			std::cout << computedPosition.X << " " << computedPosition.Y << " " << "BOOST" << std::endl;
+		}
+		else
+		{
+			std::cout << computedPosition.X << " " << computedPosition.Y << " " << computedThrust << std::endl;
+		}
 
-
-
-		// You have to output the target position
-		// followed by the power (0 <= thrust <= 100)
-		// i.e.: "x y thrust"
-		std::cout << computedPosition.X << " " << computedPosition.Y << " " << computedThrust << std::endl;
 	}
 }
