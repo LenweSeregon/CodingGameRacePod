@@ -22,6 +22,10 @@ The game bring to wood 2 by following the step by step tutorial, correcting the 
 * I also detect that my boost usage was wrong, allowed me to leave Bronze but clearly there was a mistake that I correct (It was always boosting at the first checkpoint of second lap)
 * Finally, I knew that I had to implement Shield usage in order to avoid a lot of loss where I got bump ouf just near the checkpoint or totally breaking my path
 
+### From Gold
+* First step immediatly was to refactor a huge part of the code, because entry is totally different
+* Second step was to decide a new strategy and refactor part of the code also, to have an interceptor with a purpose totally different than our race, to block the opponent ahead pod
+
 ## Timeline
 
 ### 13/12/2012 : (~20 min) TOTAL 0H20
@@ -33,14 +37,19 @@ The game bring to wood 2 by following the step by step tutorial, correcting the 
 * Ensuring that the project is still working as expected, testing the code but without working on beating the Wood 2 boss for the moment
 * Some research on C++ features I had forgotten or never really work with like pointer to member-function
 
-### 15/12/2012 - Morning + Afternoon : (~1h20 + 3h00) TOTAL : 6H00
+### 15/12/2012 - Morning + Afternoon : (~1h20 + ~3h00) TOTAL : 6H00
 * Implementation of a bit less trivial thrust management taking into consideration distance from the next checkpoint and the angle
 * CheckpointsManager which ensure to not boost during the first lap and register all checkpoints, allowing the system to know at the second lap when it is the best time to boost
 * A bit a refactoring on code, mainly inserting static constantes in classes
 * Removed Property utility class, getting back to standard c++ Get and Set methods
 * At this step, I add pass silver rank, and was nearly gold, and thought of an additionnal things with the CheckpointManager. The quite random turning of the pod annoyed me so I thought that it would be nice just before reaching the checkpoint to start turning the pod in the good direction, preventing huge drift. Didn't had time to finish it though
 
-### 16/12/2012 - Morning (~2h30) Total : 8H30
+### 16/12/2012 - Morning + Afternoon (~2h30) Total : 8H30
 * I've been rewriting some code, in order to add new informations that the game provided such as the possibility to shield, tweaking values and realized some mistakes in the code that still works to get out of Bronze.
 * Implementing the Shield usage, when ur pod is going to collapse with the opponent in not a positive manner
 * Some tweak to ensure that ur pod slowdown as it should when it approch the checkpoint, and force it to slowdown more by a *2 factor because it was drifting to much in my opinion
+
+### 17/12/2021 - Morning + Afternoon (~1h30 + ~3h30) Total : 13H30
+* Massive rewrite of the entry management and massive rewrite of architecture in general to allow second step
+* Implementing a new strategy for our pod to try reaching the opponent pod to block him on its path
+* At this step, everything was quite broken, but decided to make a break and start again the day after
