@@ -48,20 +48,20 @@ public:
 		return *this;
 	}
 
-	bool operator==(const Vector2<T>& other) const
+	bool operator==(const Vector2& other) const
 	{
 		return X == other.X && Y == other.Y;
 	}
 
-	Vector2<T> operator+(const Vector2<T>& other) const
+	Vector2<T> operator+(const Vector2& other) const
 	{
 		return Vector2<T>(X + other.X, Y + other.Y);
 	}
-	Vector2<T> operator+=(Vector2<T>& other)
+	Vector2<T> operator+=(Vector2& other)
 	{
 		this = this + other;
 	}
-	Vector2<T> operator-(const Vector2<T>& other) const
+	Vector2<T> operator-(const Vector2& other) const
 	{
 		return Vector2<T>(X - other.X, Y - other.Y);
 	}
@@ -73,35 +73,22 @@ public:
 	{
 		this = k * this;
 	}
-	Vector2<T> operator/(float k) const
+
+	Vector2<float> Normalize() const
 	{
-		return Vector2<T>(X / k, Y / k);
+		const float magnitude = sqrt(X*X + Y * Y);
+		std::cerr << "Magnitude " << magnitude << " - " << X << " - " << Y << std::endl;
+		return Vector2<float>(X / magnitude, Y / magnitude);
 	}
 
-	float Dot(const Vector2& other)
+	float Dot(const Vector2& other) const
 	{
 		return X * other.X + Y * other.Y;
 	}
 
-	float DistanceSqr(const Vector2& other)
+	float DistanceSqr(const Vector2& other) const
 	{
 		return (X - other.X)*(X - other.X) + (Y - other.Y)*(Y - other.Y);
-	}
-
-	float Magnitude() const
-	{
-		return sqrt(X * X + Y * Y);
-	}
-
-	Vector2<T> Normalize() const
-	{
-		float magnitude = Magnitude();
-		if (magnitude > 0)
-		{
-			return *this / magnitude;
-		}
-
-		return Vector2<int>(X, Y);
 	}
 };
 
@@ -109,13 +96,15 @@ class SimulationResult
 {
 public:
 
+	bool Shield;
 	bool Boost;
 	int X;
 	int Y;
 	int Thrust;
 
-	SimulationResult(bool aBoost, int aX, int aY, int aThrust) :
+	SimulationResult(bool aBoost, bool aShield, int aX, int aY, int aThrust) :
 		Boost(aBoost),
+		Shield(aShield),
 		X(aX),
 		Y(aY),
 		Thrust(aThrust)
@@ -136,9 +125,11 @@ public:
 	int YNextCheckpoint;
 	int AngleNextCheckpoint;
 	int DistanceNextCheckpoint;
+	const Pod& PodOpponent;
 
 	SimulationEntry(int aXPod, int aYPod, int aXOpponent, int aYOpponent,
-		int aXNextCheckpoint, int aYNextCheckpoint, int aAngleNextCheckpoint, int aDistanceNextCheckpoint) :
+		int aXNextCheckpoint, int aYNextCheckpoint, int aAngleNextCheckpoint, int aDistanceNextCheckpoint,
+		const Pod& aPodOpponent) :
 		XPod(aXPod),
 		YPod(aYPod),
 		XOpponent(aXOpponent),
@@ -146,7 +137,8 @@ public:
 		XNextCheckpoint(aXNextCheckpoint),
 		YNextCheckpoint(aYNextCheckpoint),
 		AngleNextCheckpoint(aAngleNextCheckpoint),
-		DistanceNextCheckpoint(aDistanceNextCheckpoint)
+		DistanceNextCheckpoint(aDistanceNextCheckpoint),
+		PodOpponent(aPodOpponent)
 	{
 
 	}
@@ -167,15 +159,10 @@ public:
 
 	}
 
-	Vector2<int> GetPosition() const
-	{
-		return _mPosition;
-	}
-
-	void SetPosition(Vector2<int> aValue)
-	{
-		_mPosition = aValue;
-	}
+	// -- Getters
+	Vector2<int> Position() const { return _mPosition; }
+	// -- Setters
+	void SetPosition(Vector2<int> aValue) { _mPosition = aValue; }
 };
 
 
@@ -186,6 +173,7 @@ private:
 	int _mAngle;
 	int _mDistance;
 	bool _mBestBoostIndex;
+	Vector2<int> _mNextCheckpointPosition;
 
 public:
 
@@ -193,7 +181,8 @@ public:
 		Entity(aPosition),
 		_mAngle(aAngle),
 		_mDistance(aDistance),
-		_mBestBoostIndex(false)
+		_mBestBoostIndex(false),
+		_mNextCheckpointPosition(Vector2<int>{-1, -1})
 	{
 
 	}
@@ -210,6 +199,11 @@ public:
 
 	static float Radius;
 
+	Vector2<int> GetNextCheckpointPosition() const
+	{
+		return _mNextCheckpointPosition;
+	}
+
 	int GetAngle() const
 	{
 		return _mAngle;
@@ -223,6 +217,11 @@ public:
 	bool GetBestBoostIndex() const
 	{
 		return _mBestBoostIndex;
+	}
+
+	void SetNextCheckpointPosition(Vector2<int> aValue)
+	{
+		_mNextCheckpointPosition = aValue;
 	}
 
 	void SetAngle(int aValue)
@@ -263,8 +262,6 @@ public:
 
 	void Update(const Vector2<int>& aCurrentCheckpointTargetPosition, int aAngle, int aDistance)
 	{
-		std::cerr << "Lap " << _mCurrentLap << " - Index " << _mCurrentCheckpointIndex << std::endl;
-
 		// Condition ensuring the init of the checkpoints array when it is empty
 		if (_mCheckpoints.empty())
 		{
@@ -272,7 +269,7 @@ public:
 			return;
 		}
 
-		if (_mCheckpoints[_mCurrentCheckpointIndex].GetPosition() == aCurrentCheckpointTargetPosition)
+		if (_mCheckpoints[_mCurrentCheckpointIndex].Position() == aCurrentCheckpointTargetPosition)
 		{
 			_mCheckpoints[_mCurrentCheckpointIndex].SetAngle(aAngle);
 			_mCheckpoints[_mCurrentCheckpointIndex].SetDistance(aDistance);
@@ -282,7 +279,10 @@ public:
 		if (IsFirstCheckpoint(aCurrentCheckpointTargetPosition)) // End of the current Lap
 		{
 			if (_mCurrentLap == 0)
+			{
 				AssignBestBoostIndex();
+				AssignBestOffset();
+			}
 
 			_mCurrentLap++;
 			_mCurrentCheckpointIndex = 0;
@@ -291,7 +291,7 @@ public:
 		{
 			_mCurrentCheckpointIndex++;
 			if (_mCurrentLap == 0)
-				_mCheckpoints.push_back(Checkpoint(aCurrentCheckpointTargetPosition, 0, 0));
+				_mCheckpoints.push_back(Checkpoint(aCurrentCheckpointTargetPosition, aAngle, aDistance));
 		}
 	}
 
@@ -308,32 +308,39 @@ private:
 			std::cerr << "Should atleast have 2 checkpoints";
 
 		float longestDistance = 0.f;
+		size_t indexBestBoost = 0;
 		for (size_t currentCheckpoint = 0; currentCheckpoint < _mCheckpoints.size(); currentCheckpoint++)
 		{
 			const size_t nextCheckpoint = (currentCheckpoint + 1) % _mCheckpoints.size();
-			float currentDistance = _mCheckpoints[currentCheckpoint].GetPosition().DistanceSqr(_mCheckpoints[nextCheckpoint].GetPosition());
+			float currentDistance = _mCheckpoints[currentCheckpoint].Position().DistanceSqr(_mCheckpoints[nextCheckpoint].Position());
+
+			std::cerr << currentCheckpoint << " - " << nextCheckpoint << " - " << currentDistance << " - " << longestDistance << std::endl;
 
 			if (currentDistance > longestDistance)
 			{
-				_mCheckpoints[nextCheckpoint].SetBestBoostIndex(true);
+				indexBestBoost = nextCheckpoint;
 				longestDistance = currentDistance;
 			}
 		}
+
+		_mCheckpoints[indexBestBoost].SetBestBoostIndex(true);
 	}
 
 	void AssignBestOffset()
 	{
+		if (_mCheckpoints.size() < 2)
+			std::cerr << "Should atleast have 2 checkpoints";
+
 		for (size_t currentCheckpoint = 0; currentCheckpoint < _mCheckpoints.size(); currentCheckpoint++)
 		{
 			const size_t nextCheckpoint = (currentCheckpoint + 1) % _mCheckpoints.size();
-			Vector2<int> direction = _mCheckpoints[nextCheckpoint].GetPosition() - _mCheckpoints[currentCheckpoint].GetPosition();
-			Vector2<int> normalizedDirection = direction.Normalize();
+			_mCheckpoints[currentCheckpoint].SetNextCheckpointPosition(_mCheckpoints[nextCheckpoint].Position());
 		}
 	}
 
 	bool IsFirstCheckpoint(const Vector2<int>& aCheckpointPosition)
 	{
-		return _mCheckpoints.empty() == false && _mCheckpoints[0].GetPosition() == aCheckpointPosition;
+		return _mCheckpoints.empty() == false && _mCheckpoints[0].Position() == aCheckpointPosition;
 	}
 
 private:
@@ -350,40 +357,65 @@ private:
 
 	Vector2<int> _mLastFramePosition;
 
-	bool _mBoostAvailable;
+	Vector2<int> _mTarget;
+
 	int _mThrust;
 	PodStrategy* _mStrategy;
+	Vector2<int> _mSpeed;
+
+	bool _mBoostAvailable;
+
+	int _mShieldCooldown;
+	bool _mShieldAvailable;
+
+	bool _mShieldUsed;
+	bool _mBoostUsed;
 
 public:
 
 	Pod(Vector2<int> aPosition, int aThrust) :
 		Entity(aPosition),
-		_mThrust(aThrust)
+		_mThrust(aThrust),
+		_mShieldCooldown(0),
+		_mShieldAvailable(true),
+		_mBoostAvailable(true),
+		_mLastFramePosition(Vector2<int>{-1, 1}),
+		_mSpeed(Vector2<int>(0, 0))
 	{
-		_mLastFramePosition = Vector2<int>(-1, -1);
-		_mBoostAvailable = true;
+
 	}
 
 	static int MaxThrust;
 
+	bool BoostUsed() const { return _mBoostUsed; }
+	bool ShieldUsed() const { return _mShieldUsed; }
+
+	const Vector2<int>& Speed() const { return _mSpeed; }
+	const Vector2<int>& Target() const { return _mTarget; }
+	int Thrust() const { return _mThrust; }
+
+	void SetTarget(const Vector2<int> aTarget) { _mTarget = aTarget; }
+
+	void RequestBoost()
+	{
+		if (_mShieldCooldown > 0)
+			return;
+		if (_mBoostAvailable == false)
+			return;
+
+		_mBoostUsed = true;
+		_mBoostAvailable = false;
+	}
+
+	void RequestShield()
+	{
+		_mShieldUsed = true;
+		_mShieldCooldown = 3;
+	}
+
 	Vector2<int> GetLastFramePosition() const
 	{
 		return _mLastFramePosition;
-	}
-
-	bool GetBoostAvailable() const
-	{
-		return _mBoostAvailable;
-	}
-
-	int GetThrust() const
-	{
-		return _mThrust;
-	}
-
-	void SetBoostAvailable(bool aValue)
-	{
-		_mBoostAvailable = aValue;
 	}
 
 	void SetThrust(int aValue)
@@ -413,6 +445,7 @@ public:
 
 	}
 
+	virtual bool UseShield(Pod& pod, const SimulationEntry& aSimulationEntry) = 0;
 	virtual SimulationResult Compute(Pod& pod, const SimulationEntry& aSimulationEntry) = 0;
 };
 
@@ -465,6 +498,7 @@ public:
 		_mThresholdAngle = aValue;
 	}
 
+	bool UseShield(Pod& pod, const SimulationEntry& aSimulationEntry);
 	SimulationResult Compute(Pod& pod, const SimulationEntry& aSimulationEntry);
 };
 
@@ -487,6 +521,13 @@ inline void Pod::UpdateLastFramePosition(Vector2<int> aPosition)
 inline void Pod::UpdatePosition(Vector2<int> aPosition)
 {
 	_mPosition = aPosition;
+	Vector2<int> lastPosition = (_mLastFramePosition.X >= 0) ? (_mLastFramePosition) : (_mPosition);
+	_mSpeed = _mPosition - _mLastFramePosition;
+
+	_mShieldUsed = false;
+	_mBoostUsed = false;
+	if (_mShieldCooldown > 0)
+		_mShieldCooldown--;
 }
 
 inline void Pod::UpdateStrategy(PodStrategy& aStrategy)
@@ -499,8 +540,13 @@ inline std::string Pod::Compute(const SimulationEntry& aSimulationEntry)
 	SimulationResult result = _mStrategy->Compute(*this, aSimulationEntry);
 	if (result.Boost)
 	{
-		_mBoostAvailable = false;
+		std::cerr << "BOOST" << std::endl;
 		return std::to_string(result.X) + " " + std::to_string(result.Y) + " " + "BOOST";
+	}
+	if (result.Shield)
+	{
+		std::cerr << "SHIELD" << std::endl;
+		return std::to_string(result.X) + " " + std::to_string(result.Y) + " " + "SHIELD";
 	}
 
 	return std::to_string(result.X) + " " + std::to_string(result.Y) + " " + std::to_string(result.Thrust);
@@ -508,35 +554,67 @@ inline std::string Pod::Compute(const SimulationEntry& aSimulationEntry)
 
 // ==== Standard Pod Strategy ====
 
+inline bool StandardPodStrategy::UseShield(Pod& pod, const SimulationEntry& aSimulationEntry)
+{
+	const Vector2<int> opponentPosition = Vector2<int>(aSimulationEntry.XOpponent, aSimulationEntry.YOpponent);
+
+	const Vector2<int> podNextPosition = pod.Position() + pod.Speed();
+	const Vector2<int> opponentNextPosition = aSimulationEntry.PodOpponent.Position() + aSimulationEntry.PodOpponent.Speed();
+
+	const bool collision = podNextPosition.DistanceSqr(opponentNextPosition) < (2 * 240) * (2 * 240);
+	std::cerr << "Collision " << collision << std::endl;
+	if (collision == false)
+		return false;
+
+	const Vector2<float> podDirection = (pod.Target() - pod.Position()).Normalize();
+	const Vector2<float> opponentDirectionContact = (opponentPosition - pod.Position()).Normalize();
+
+	std::cerr << "Direction POD : " << podDirection.X << " , " << podDirection.Y << std::endl;
+	std::cerr << "Direction Opponent : " << opponentDirectionContact.X << " , " << opponentDirectionContact.Y << std::endl;
+	std::cerr << "Contact : " << podDirection.Dot(opponentDirectionContact) << std::endl;
+
+
+	return podDirection.Dot(opponentDirectionContact) > 0.3f;
+}
+
 inline SimulationResult StandardPodStrategy::Compute(Pod& pod, const SimulationEntry& aSimulationEntry)
 {
 	Vector2<int> currentCheckpointPosition = { aSimulationEntry.XNextCheckpoint, aSimulationEntry.YNextCheckpoint };
-	Vector2<int> podPreviousPosition = (pod.GetLastFramePosition().X >= 0) ? (pod.GetLastFramePosition()) : (pod.GetPosition());
+	Vector2<int> podPreviousPosition = (pod.GetLastFramePosition().X >= 0) ? (pod.GetLastFramePosition()) : (pod.Position());
 	Vector2<int> podTarget = currentCheckpointPosition;
 
 	_mCheckpointsManager.Update(currentCheckpointPosition, aSimulationEntry.AngleNextCheckpoint, aSimulationEntry.DistanceNextCheckpoint);
 
-	int thrust = 0;
-	bool boost = false;
 	Checkpoint _mCurrentCheckpoint = _mCheckpointsManager.GetCurrentCheckpoint();
 
-	if (_mCurrentCheckpoint.GetAngle() < 2)
+	std::cerr << "Angle : " << _mCurrentCheckpoint.GetAngle() << std::endl;
+
+	if (UseShield(pod, aSimulationEntry))
 	{
-		thrust = pod.MaxThrust;
-		boost = pod.GetBoostAvailable() && _mCheckpointsManager.ShouldUseBoost();
+		pod.RequestShield();
+	}
+	else if (_mCurrentCheckpoint.GetAngle() < 2 && _mCurrentCheckpoint.GetDistance() > 650)
+	{
+		pod.SetThrust(pod.MaxThrust);
+		if (_mCheckpointsManager.ShouldUseBoost())
+			pod.RequestBoost();
 	}
 	else
 	{
-		Vector2<int> position = pod.GetPosition() - pod.GetLastFramePosition();
-		podTarget = _mCurrentCheckpoint.GetPosition() - (position * 3.f);
+		Vector2<int> position = pod.Position() - pod.GetLastFramePosition();
+		podTarget = _mCurrentCheckpoint.Position() - (pod.Speed() * 3.f);
 
 		float distanceFactor = std::clamp(_mCurrentCheckpoint.GetDistance() / (_mCurrentCheckpoint.Radius * 2.f), 0.f, 1.f);
+		distanceFactor = std::clamp(distanceFactor * 2.f, 0.f, 1.f);
 		float angleFactor = 1.f - std::clamp(_mCurrentCheckpoint.GetAngle() / 90.f, 0.f, 1.f);
+		angleFactor = std::clamp(angleFactor * 2.f, 0.f, 1.f);
 
-		thrust = pod.MaxThrust * distanceFactor * angleFactor;
+		std::cerr << "Factors : " << distanceFactor << " - " << angleFactor << std::endl;
+
+		pod.SetThrust(pod.MaxThrust * distanceFactor * angleFactor);
 	}
 
-	return SimulationResult(boost, podTarget.X, podTarget.Y, thrust);
+	return SimulationResult(pod.BoostUsed(), pod.ShieldUsed(), podTarget.X, podTarget.Y, pod.Thrust());
 }
 
 // ===================================
@@ -546,6 +624,8 @@ int main()
 {
 
 	Pod pod{ Vector2{0, 0}, 50 };
+	Pod opponent{ Vector2<int>{0, 0}, 50 };
+
 	StandardPodStrategy strategy;
 
 	pod.UpdateStrategy(strategy);
@@ -570,13 +650,17 @@ int main()
 		// ============================
 		// == Update and computation
 		pod.UpdatePosition({ x, y });
-		SimulationEntry entry{ x, y, opponent_x, opponent_y, next_checkpoint_x, next_checkpoint_y, next_checkpoint_angle, next_checkpoint_dist };
+		pod.SetTarget({ next_checkpoint_x, next_checkpoint_y });
+		opponent.UpdatePosition({ opponent_x, opponent_y });
+
+		SimulationEntry entry{ x, y, opponent_x, opponent_y, next_checkpoint_x, next_checkpoint_y, abs(next_checkpoint_angle), next_checkpoint_dist, opponent };
 
 		// ============================
 
 		std::cout << pod.Compute(entry) << std::endl;
 
 		pod.UpdateLastFramePosition({ x,y });
+		opponent.UpdateLastFramePosition({ opponent_x, opponent_y });
 
 	}
 }
