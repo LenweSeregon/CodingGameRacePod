@@ -53,20 +53,20 @@ public:
 		return *this;
 	}
 
-	bool operator==(const Vector2& other) const
+	bool operator==(const Vector2<T>& other) const
 	{
 		return X == other.X && Y == other.Y;
 	}
 
-	Vector2<T> operator+(const Vector2& other) const
+	Vector2<T> operator+(const Vector2<T>& other) const
 	{
 		return Vector2<T>(X + other.X, Y + other.Y);
 	}
-	Vector2<T> operator+=(Vector2& other)
+	Vector2<T> operator+=(Vector2<T>& other)
 	{
 		this = this + other;
 	}
-	Vector2<T> operator-(const Vector2& other) const
+	Vector2<T> operator-(const Vector2<T>& other) const
 	{
 		return Vector2<T>(X - other.X, Y - other.Y);
 	}
@@ -82,21 +82,23 @@ public:
 	Vector2<float> Normalize() const
 	{
 		const float magnitude = sqrt(X*X + Y * Y);
-		std::cerr << "Magnitude " << magnitude << " - " << X << " - " << Y << std::endl;
 		return Vector2<float>(X / magnitude, Y / magnitude);
 	}
 
-	float Dot(const Vector2& other) const
+	float Dot(const Vector2<T>& other) const
 	{
-		return X * other.X + Y * other.Y;
+		std::cerr << X << " - " << other.X << std::endl;
+		float result = (X * other.X) + (Y *  other.Y);
+		std::cerr << result << std::endl;
+		return result;
 	}
 
-	float DistanceSqr(const Vector2& other) const
+	float DistanceSqr(const Vector2<T>& other) const
 	{
 		return (X - other.X)*(X - other.X) + (Y - other.Y)*(Y - other.Y);
 	}
 
-	float Distance(const Vector2& other) const
+	float Distance(const Vector2<T>& other) const
 	{
 		return sqrt(DistanceSqr(other));
 	}
@@ -243,8 +245,6 @@ private:
 			const size_t nextCheckpoint = (currentCheckpoint + 1) % _mCheckpoints.size();
 			float currentDistance = _mCheckpoints[currentCheckpoint].Position().DistanceSqr(_mCheckpoints[nextCheckpoint].Position());
 
-			std::cerr << currentCheckpoint << " - " << nextCheckpoint << " - " << currentDistance << " - " << longestDistance << std::endl;
-
 			if (currentDistance > longestDistance)
 			{
 				indexBestBoost = nextCheckpoint;
@@ -253,18 +253,6 @@ private:
 		}
 
 		_mCheckpoints[indexBestBoost].SetBestBoostIndex(true);
-	}
-
-	void AssignBestOffset()
-	{
-		if (_mCheckpoints.size() < 2)
-			std::cerr << "Should atleast have 2 checkpoints";
-
-		for (size_t currentCheckpoint = 0; currentCheckpoint < _mCheckpoints.size(); currentCheckpoint++)
-		{
-			const size_t nextCheckpoint = (currentCheckpoint + 1) % _mCheckpoints.size();
-			_mCheckpoints[currentCheckpoint].SetNextCheckpointPosition(_mCheckpoints[nextCheckpoint].Position());
-		}
 	}
 
 	bool IsFirstCheckpoint(const Vector2<int>& aCheckpointPosition)
@@ -354,7 +342,7 @@ private:
 	int _mThrust;
 	int _mCurrentLap;
 	Vector2<int> _mSpeed;
-	int _mAngleAbsolute;
+	int _mAngle;
 
 	bool _mBoostAvailable;
 	bool _mShieldAvailable;
@@ -373,10 +361,12 @@ public:
 		_mShieldAvailable(true),
 		_mBoostAvailable(true),
 		_mSpeed(Vector2<int>(0, 0)),
-		_mAngleAbsolute(0),
+		_mAngle(0),
 		_mNextCheckpointIndex(0),
 		_mTarget({ 0,0 }),
-		_mCurrentLap(0)
+		_mCurrentLap(0),
+		_mShieldUsed(false),
+		_mBoostUsed(false)
 	{
 
 	}
@@ -388,10 +378,12 @@ public:
 		_mShieldAvailable(true),
 		_mBoostAvailable(true),
 		_mSpeed(Vector2<int>(0, 0)),
-		_mAngleAbsolute(0),
+		_mAngle(0),
 		_mNextCheckpointIndex(0),
 		_mTarget({ 0,0 }),
-		_mCurrentLap(0)
+		_mCurrentLap(0),
+		_mShieldUsed(false),
+		_mBoostUsed(false)
 	{
 
 	}
@@ -404,7 +396,7 @@ public:
 	bool IsRacer() const;
 	int CurrentLap() const { return _mCurrentLap; }
 	int NextCheckpointIndex() const { return _mNextCheckpointIndex; }
-	int Angle() const { return _mAngleAbsolute; }
+	int Angle() const { return _mAngle; }
 	const Vector2<int>& Speed() const { return _mSpeed; }
 	const Vector2<int>& Target() const { return _mTarget; }
 	int Thrust() const { return _mThrust; }
@@ -442,10 +434,6 @@ public:
 
 class PodStrategy
 {
-
-protected:
-
-	CheckpointManager _mCheckpointsManager;
 
 public:
 
@@ -558,7 +546,7 @@ inline void Pod::UpdateFromStandardInput()
 
 	_mPosition = { x,y };
 	_mSpeed = { vx, vy };
-	_mAngleAbsolute = angle;
+	_mAngle = angle;
 	if (nextCheckpointIndex != _mNextCheckpointIndex)
 	{
 		_mNextCheckpointIndex = nextCheckpointIndex;
@@ -604,7 +592,7 @@ inline bool PodStrategy::Collision(const Pod& podA, const Pod& podB)
 {
 	const Vector2<int> podANextPosition = podA.Position() + podA.Speed();
 	const Vector2<int> podBNextPosition = podB.Position() + podB.Speed();
-	bool collision = podANextPosition.DistanceSqr(podBNextPosition) < (2 * 240) * (2 * 240);
+	bool collision = podANextPosition.DistanceSqr(podBNextPosition) < (2 * 420) * (2 * 420);
 
 	return collision;
 }
@@ -653,8 +641,12 @@ inline bool RacerPodStrategy::BeneficialCollision(const Pod& podA, const Pod& po
 	// 
 	// 0.5 seems a reasonable value, meaning the pod will still be more or less pushed into the good direction
 	const Vector2<float> podADirection = (podA.Target() - podA.Position()).Normalize();
-	const Vector2<float> podBDirectionSmashingA = (podB.Position() - podA.Position()).Normalize();
-	return podADirection.Dot(podBDirectionSmashingA) > 0.5f;
+	const Vector2<float> podBDirectionSmashingA = (podA.Position() - podB.Position()).Normalize();
+	float dot = podADirection.Dot(podBDirectionSmashingA);
+	std::cerr << "A : " << podADirection.X << "," << podADirection.Y << std::endl;
+	std::cerr << "B : " << podBDirectionSmashingA.X << "," << podBDirectionSmashingA.Y << std::endl;
+	std::cerr << "Dot : " << dot << std::endl;
+	return dot > 0.5f;
 }
 
 inline bool RacerPodStrategy::ShouldUseShield(Pod& pod, const SimulationEntry& aSimulationEntry)
@@ -663,16 +655,20 @@ inline bool RacerPodStrategy::ShouldUseShield(Pod& pod, const SimulationEntry& a
 	Pod& opponentPod1 = aSimulationEntry.opponentPods[0];
 	Pod& opponentPod2 = aSimulationEntry.opponentPods[1];
 
+	std::cerr << "Testing collision" << std::endl;
 	if (Collision(pod, otherPod))
 	{
-		if (BeneficialCollision(pod, otherPod))
-			return false;
+		//std::cerr << "collision 1" << std::endl;
+		//if(BeneficialCollision(pod, otherPod))
+		//    return false;
 
-		return true;
+		//return true;
+		return false;
 	}
 
 	if (Collision(pod, opponentPod1))
 	{
+		std::cerr << "collision 2" << std::endl;
 		if (BeneficialCollision(pod, opponentPod1))
 			return false;
 
@@ -681,6 +677,7 @@ inline bool RacerPodStrategy::ShouldUseShield(Pod& pod, const SimulationEntry& a
 
 	if (Collision(pod, opponentPod2))
 	{
+		std::cerr << "collision 3" << std::endl;
 		if (BeneficialCollision(pod, opponentPod2))
 			return false;
 
@@ -699,7 +696,11 @@ inline SimulationResult RacerPodStrategy::Compute(Pod& pod, const SimulationEntr
 {
 	pod.SetTarget(ComputeTarget(pod, aSimulationEntry));
 	ComputeThrust(pod, aSimulationEntry);
-	return SimulationResult(pod.BoostUsed(), pod.ShieldUsed(), pod.Position().X, pod.Position().Y, pod.Thrust());
+	//std::cerr << "Compute racer : " << pod.NextCheckpointIndex() << std::endl;
+	//std::cerr << "Compute racer : " << aSimulationEntry.checkpointManager[pod.NextCheckpointIndex()].Position().X << std::endl;
+	//std::cerr << "Compute racer :" << pod.Position().X << " - " << pod.Position().Y << std::endl;
+	//std::cerr << "Compute racer : "  << pod.Target().X << " - " << pod.Target().Y << std::endl;
+	return SimulationResult(pod.BoostUsed(), pod.ShieldUsed(), pod.Target().X, pod.Target().Y, pod.Thrust());
 
 	/*Vector2<int> currentCheckpointPosition = { aSimulationEntry.XNextCheckpoint, aSimulationEntry.YNextCheckpoint };
 	Vector2<int> podPreviousPosition = (pod.GetLastFramePosition().X >= 0) ? (pod.GetLastFramePosition()) : (pod.Position());
@@ -770,10 +771,10 @@ inline Vector2<int> InterceptorPodStrategy::ComputeTarget(Pod& pod, const Simula
 	// And stop when we see that our pod can reach it before opponent pod
 	float opponentDistance = 0;
 	Vector2<int> opponentCheckpointPositionToReach = opponent.Position();
-	for (int i = 0; i < _mCheckpointsManager.NumberOfCheckpoint(); i++)
+	for (int i = 0; i < aSimulationEntry.checkpointManager.NumberOfCheckpoint(); i++)
 	{
-		int nextCheckpointIndex = (opponent.NextCheckpointIndex() + 1) % (_mCheckpointsManager.NumberOfCheckpoint());
-		Vector2<int> nextCheckpointPosition = _mCheckpointsManager[nextCheckpointIndex].Position();
+		int nextCheckpointIndex = (opponent.NextCheckpointIndex() + 1) % (aSimulationEntry.checkpointManager.NumberOfCheckpoint());
+		Vector2<int> nextCheckpointPosition = aSimulationEntry.checkpointManager[nextCheckpointIndex].Position();
 
 		opponentDistance += opponentCheckpointPositionToReach.Distance(nextCheckpointPosition);
 		float podDistance = pod.Position().Distance(nextCheckpointPosition);
@@ -836,7 +837,8 @@ inline SimulationResult InterceptorPodStrategy::Compute(Pod& pod, const Simulati
 {
 	pod.SetTarget(ComputeTarget(pod, aSimulationEntry));
 	ComputeThrust(pod, aSimulationEntry);
-	return SimulationResult(pod.BoostUsed(), pod.ShieldUsed(), pod.Position().X, pod.Position().Y, pod.Thrust());
+	return SimulationResult(pod.BoostUsed(), pod.ShieldUsed(), pod.Target().X, pod.Target().Y, pod.Thrust());
+	//return SimulationResult(false, false, pod.Position().X, pod.Position().Y, 0);
 }
 
 // ===================================
@@ -890,26 +892,27 @@ int main()
 			opponentPod.UpdateFromStandardInput();
 		}
 
-		int indexRacingPod = IndexPodAhead(myPods[0], myPods[1], checkpointsManager);
-		int indexOpponentAhead = IndexPodAhead(opponentPods[0], opponentPods[1], checkpointsManager);
+		int indexRacingPod = (IndexPodAhead(myPods[0], myPods[1], checkpointsManager)) ? (0) : (1);
+		int indexOpponentAhead = (IndexPodAhead(opponentPods[0], opponentPods[1], checkpointsManager)) ? (0) : (1);
 		Pod& racingPod = myPods[indexRacingPod];
 		Pod& interceptorPod = myPods[1 - indexRacingPod];
 		Pod& opponentAheadPod = opponentPods[indexOpponentAhead];
 
 		racingPod.UpdateStrategy(racerStrategy);
-		racingPod.SetTarget(checkpointsManager[racingPod.NextCheckpointIndex()].Position());
-
 		interceptorPod.UpdateStrategy(interceptorStrategy);
-		interceptorPod.SetTarget(opponentAheadPod.Position());
 
 		// -- Building our simulation entry for this turn
 
 		SimulationEntry entry{ myPods, opponentPods, checkpointsManager, indexOpponentAhead };
 
-		// ============================
+		// ============================ 
+		std::cerr << "Racer Pod " << racingPod.NextCheckpointIndex() << std::endl;
+		//std::cout << myPods[0].Compute(entry) << std::endl;
+		std::cout << racingPod.Compute(entry) << std::endl;
 
-		std::cout << myPods[0].Compute(entry) << std::endl;
-		std::cout << myPods[1].Compute(entry) << std::endl;
+		std::cerr << "Interceptor pod" << std::endl;
+		//std::cout << myPods[1].Compute(entry) << std::endl;
+		std::cout << interceptorPod.Compute(entry) << std::endl;
 
 	}
 }

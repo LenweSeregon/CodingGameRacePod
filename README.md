@@ -44,12 +44,13 @@ The game bring to wood 2 by following the step by step tutorial, correcting the 
 * Removed Property utility class, getting back to standard c++ Get and Set methods
 * At this step, I add pass silver rank, and was nearly gold, and thought of an additionnal things with the CheckpointManager. The quite random turning of the pod annoyed me so I thought that it would be nice just before reaching the checkpoint to start turning the pod in the good direction, preventing huge drift. Didn't had time to finish it though
 
-### 16/12/2012 - Morning + Afternoon (~2h30) Total : 8H30
+### 16/12/2012 - Morning + Afternoon (~1h30 + ~4h00) Total : 11H30
 * I've been rewriting some code, in order to add new informations that the game provided such as the possibility to shield, tweaking values and realized some mistakes in the code that still works to get out of Bronze.
 * Implementing the Shield usage, when ur pod is going to collapse with the opponent in not a positive manner
 * Some tweak to ensure that ur pod slowdown as it should when it approch the checkpoint, and force it to slowdown more by a *2 factor because it was drifting to much in my opinion
-
-### 17/12/2021 - Morning + Afternoon (~1h30 + ~3h30) Total : 13H30
 * Massive rewrite of the entry management and massive rewrite of architecture in general to allow second step
 * Implementing a new strategy for our pod to try reaching the opponent pod to block him on its path
 * At this step, everything was quite broken, but decided to make a break and start again the day after
+
+### 17/12/2021 - Morning (~1h30) Total : 13H00
+* Fix every bugs I had to get back to a working state, I have been able to reach rank 2100 gold over 7040 with the implementation, knowing that I probably had place to fix some other things to increase a bit
