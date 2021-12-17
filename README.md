@@ -25,6 +25,7 @@ The game bring to wood 2 by following the step by step tutorial, correcting the 
 ### From Gold
 * First step immediatly was to refactor a huge part of the code, because entry is totally different
 * Second step was to decide a new strategy and refactor part of the code also, to have an interceptor with a purpose totally different than our race, to block the opponent ahead pod
+* Thinking also Monte-Carlo algorithm because the game is quite easy to simulate but not enough time to do it, instead I worked on a smarter way to drift when arriving on a checkpoint
 
 ## Timeline
 
@@ -52,5 +53,6 @@ The game bring to wood 2 by following the step by step tutorial, correcting the 
 * Implementing a new strategy for our pod to try reaching the opponent pod to block him on its path
 * At this step, everything was quite broken, but decided to make a break and start again the day after
 
-### 17/12/2021 - Morning (~1h30) Total : 13H00
+### 17/12/2021 - Morning + Afternoon (~1h30 + 3h00) Total : 16H00
 * Fix every bugs I had to get back to a working state, I have been able to reach rank 2100 gold over 7040 with the implementation, knowing that I probably had place to fix some other things to increase a bit
+* I fixed a lot of little things which was not really working like interceptor, made some clean in the code and thought about the next step : At this point, I do not see huge improvements which can make me win a lot of place except a way move cleaner way to drift on checkpoint. I've also things also implementing a randomizing AI algorithm like Monte-Carlo which would, given the precise determinism of the game and data offer, could to simulate quite fairly turn and help to grind on the ladder. But less than 3 hours was remaining and I could not implement it in this period of time so I decided to dedicate the rest of the time to the drifting issue, some code cleaning and documenting 
