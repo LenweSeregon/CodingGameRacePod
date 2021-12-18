@@ -1,6 +1,6 @@
 # CodingGameRacePod
 
-## League reflection
+## League reflexion
 
 ### Before Wood 2
 The game bring to wood 2 by following the step by step tutorial, correcting the tiny error, and modifying the trust value so I'll skip that part and directly begin  explaination and reasoning at Wood 2.
@@ -25,7 +25,7 @@ The game bring to wood 2 by following the step by step tutorial, correcting the 
 ### From Gold
 * First step immediatly was to refactor a huge part of the code, because entry is totally different
 * Second step was to decide a new strategy and refactor part of the code also, to have an interceptor with a purpose totally different than our race, to block the opponent ahead pod
-* Thinking also Monte-Carlo algorithm because the game is quite easy to simulate but not enough time to do it, instead I worked on a smarter way to drift when arriving on a checkpoint
+* Thinking also Monte-Carlo algorithm because the game is quite easy to simulate but not enough time to do it, instead I worked on a smarter way to drift when arriving on a checkpoint at first, but detected some issues in my interceptor strategy and switch on it
 
 ## Timeline
 
@@ -56,3 +56,15 @@ The game bring to wood 2 by following the step by step tutorial, correcting the 
 ### 17/12/2021 - Morning + Afternoon (~1h30 + 3h00) Total : 16H00
 * Fix every bugs I had to get back to a working state, I have been able to reach rank 2100 gold over 7040 with the implementation, knowing that I probably had place to fix some other things to increase a bit
 * I fixed a lot of little things which was not really working like interceptor, made some clean in the code and thought about the next step : At this point, I do not see huge improvements which can make me win a lot of place except a way move cleaner way to drift on checkpoint. I've also things also implementing a randomizing AI algorithm like Monte-Carlo which would, given the precise determinism of the game and data offer, could to simulate quite fairly turn and help to grind on the ladder. But less than 3 hours was remaining and I could not implement it in this period of time so I decided to dedicate the rest of the time to the drifting issue, some code cleaning and documenting 
+
+### 18/12/2012 (~2H30) Total : 18H-18H30
+* Final part, I've been implementing a really simple checkpoint changing when we are near enough the next checkpoint to drift in the good direction, wanted to work on a more elegant way to do it, but I remarks that I had a problem on my interceptor strategy not working as expected and dived into it to fix it (Intercepting was not really working and collision with my racer and my interceptor was not always computed)
+* At this point, I reach 1810 / 7042 on gold, at this point I had not enough time to improve more at my opinion, so I did a bit of documentation on classes and thats the end
+
+## Difficulties
+* Code editing in a simple files is really ennoying and counter productive, spending a lot of times navigating through it to retrieve informations, dependencies problems, etc... 
+* The general design on the game which was really fun but having new informations every time make code design a challenge which was nice but was also time consuming, having to rewrite some part of making some other useless. Finally, a finer description of the physics engine come only at end, making a simulation not really possible with the time remaining
+
+## Improvements
+* A proper way to handle drifting with some math calculation which is possible without having to dive into a complex AI
+* Minimax, Alpha-Beta, Monte-Carlo or genetic approch could have been difference approch to simulate a turn and works on it to retrieve the best possible move for our pod in a AI.

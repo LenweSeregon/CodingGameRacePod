@@ -21,6 +21,10 @@ class PodStrategy;
 // ==== Utility classes
 // ===================================
 
+/**
+* Vector2 Utility class, used for vector representation as position, speed, etc...
+* Provide a nice and encapsulate interface for calculation on vectors
+*/
 template <typename T>
 class Vector2
 {
@@ -53,6 +57,12 @@ public:
 		return *this;
 	}
 
+	template<typename TO>
+	Vector2<TO> ToVector2() const
+	{
+		return Vector2<TO>(static_cast<TO>(X), static_cast<TO>(Y));
+	}
+
 	bool operator==(const Vector2<T>& other) const
 	{
 		return X == other.X && Y == other.Y;
@@ -70,6 +80,7 @@ public:
 	{
 		return Vector2<T>(X - other.X, Y - other.Y);
 	}
+
 	Vector2<T> operator*(float k) const
 	{
 		return Vector2<T>(k*X, k*Y);
@@ -107,6 +118,9 @@ public:
 	}
 };
 
+/**
+* Simulation result is use as computation result for Pod strategies and encapsulate all data needed for the ouput
+*/
 class SimulationResult
 {
 public:
@@ -128,6 +142,9 @@ public:
 	}
 };
 
+/**
+* Entity is the base class for unit that have a position in the word, Pod and checkpoint derives from this class
+*/
 class Entity
 {
 
@@ -155,13 +172,16 @@ public:
 	void SetPosition(Vector2<int> aValue) { _mPosition = aValue; }
 };
 
-
+/**
+* Handy way to represent the checkpoint on the race in a class, storing for exemple if this checkpoint
+* is the best to boost
+* Was mainly use during first phase of the challenge, but informations on checkpoint was not available, so I keep that class
+* for the architecture
+*/
 class Checkpoint : public Entity
 {
 private:
 
-	int _mAngle;
-	int _mDistance;
 	bool _mBestBoostIndex;
 	Vector2<int> _mNextCheckpointPosition;
 
@@ -169,8 +189,6 @@ public:
 
 	Checkpoint(Vector2<int> aPosition, int aAngle, int aDistance) :
 		Entity(aPosition),
-		_mAngle(aAngle),
-		_mDistance(aDistance),
 		_mBestBoostIndex(false),
 		_mNextCheckpointPosition(Vector2<int>{-1, -1})
 	{
@@ -181,8 +199,6 @@ public:
 
 	Checkpoint& operator=(Checkpoint other)
 	{
-		_mAngle = other._mAngle;
-		_mDistance = other._mDistance;
 		_mBestBoostIndex = other._mBestBoostIndex;
 		return *this;
 	}
@@ -196,6 +212,9 @@ public:
 	void SetBestBoostIndex(bool aValue) { _mBestBoostIndex = aValue; }
 };
 
+/**
+* Hold all the checkpoints in the race, providing an handy way to retrieve a checkpoint and its informations
+*/
 class CheckpointManager
 {
 private:
@@ -275,6 +294,9 @@ public:
 };
 
 
+/**
+* Like SimulationResult, provide an encapsulated class to regroup all informations that need to be use for computation of strategies
+*/
 class SimulationEntry
 {
 public:
@@ -295,6 +317,10 @@ public:
 };
 
 
+/**
+* Class representing a pod, which can be our pod or opponent pod
+* The pod is using a PodStrategy based on some algorithm detecting which is racer pod or interceptor pod
+*/
 class Pod : public Entity
 {
 private:
@@ -392,7 +418,10 @@ public:
 	void UpdateStrategy(PodStrategy& aStrategy);
 };
 
-
+/**
+* Abstract base class for pod's strategy, providing some useful methods and pure virtual methods about compulation that need to
+be define by subclasses
+*/
 class PodStrategy
 {
 
@@ -403,9 +432,11 @@ public:
 
 	}
 
-	float ComputeAngle(Vector2<int> positionA, Vector2<int> positionB)
+	// ==
+	// This method return the angle that our pod needs to face in order to be align with the position to face
+	float ComputeAngle(const Pod& pod, Vector2<int> positionToFace)
 	{
-		const Vector2<float> direction = (positionB - positionA).Normalize();
+		const Vector2<float> direction = (positionToFace - pod.Position()).Normalize();
 		float result = acos(direction.X) * 180.f / PI;
 		if (direction.Y < 0.f)
 			return 360.f - result;
@@ -423,6 +454,9 @@ public:
 	virtual SimulationResult Compute(Pod& pod, const SimulationEntry& aSimulationEntry) = 0;
 };
 
+/**
+* Racer strategy aiming to make the pod with this strategy win the race
+*/
 class RacerPodStrategy : public PodStrategy
 {
 private:
@@ -466,6 +500,9 @@ public:
 
 };
 
+/**
+* Interceptor strategy aiming to interrupt opponent pod in its path to victory
+*/
 class InterceptorPodStrategy : public PodStrategy
 {
 public:
@@ -567,7 +604,10 @@ inline void PodStrategy::ComputeThrust(Pod& pod, const SimulationEntry& aSimulat
 		pod.RequestShield();
 	}
 
-	if (pod.Angle() < 2 && pod.Target().Distance(pod.Position()) > 650)
+	float actualAngle = ComputeAngle(pod, pod.Target());
+	float angleDifference = abs((int)(actualAngle - pod.Angle()));
+
+	if (angleDifference < 2 && pod.Target().Distance(pod.Position()) > 650)
 	{
 		pod.SetThrust(pod.MaxThrust);
 
@@ -583,7 +623,7 @@ inline void PodStrategy::ComputeThrust(Pod& pod, const SimulationEntry& aSimulat
 		float distanceToTarget = targetPosition.Distance(pod.Position());
 		float distanceSlowdownFactor = std::clamp(distanceToTarget / (2.f * Checkpoint::Radius), 0.f, 1.f);
 
-		float angleToTarget = ComputeAngle(pod.Position(), pod.Target());
+		float angleToTarget = ComputeAngle(pod, pod.Target());
 		float angle = angleToTarget - pod.Angle();
 		float angleSlowdownFactor = 1.f - std::clamp(abs((int)angle) / 90.f, 0.f, 1.f);
 
@@ -645,7 +685,16 @@ inline bool RacerPodStrategy::ShouldUseShield(Pod& pod, const SimulationEntry& a
 
 inline Vector2<int> RacerPodStrategy::ComputeTarget(Pod& pod, const SimulationEntry& aSimulationEntry)
 {
-	return aSimulationEntry.checkpointManager[pod.NextCheckpointIndex()].Position();
+	Checkpoint nextNextCheckpoint = aSimulationEntry.checkpointManager[(pod.NextCheckpointIndex() + 1) % aSimulationEntry.checkpointManager.NumberOfCheckpoint()];
+
+	Vector2<int> nextPosition = pod.Position() + pod.Speed();
+	std::cerr << nextPosition.Distance(pod.Target()) << std::endl;
+	if (nextPosition.Distance(pod.Target()) < 1400)
+	{
+		return nextNextCheckpoint.Position();
+	}
+	else
+		return aSimulationEntry.checkpointManager[pod.NextCheckpointIndex()].Position();
 }
 
 inline SimulationResult RacerPodStrategy::Compute(Pod& pod, const SimulationEntry& aSimulationEntry)
@@ -682,11 +731,12 @@ inline Vector2<int> InterceptorPodStrategy::ComputeTarget(Pod& pod, const Simula
 	}();
 
 	if (canReachOpponentRacer)
-		target = opponent.Position() + opponent.Speed();//* 3.f;
-
-	 // Because our interceptor is not able to reach the opponent pod at this stage, we'll check where we can wait it
-	 // To do it, we'll check checkpoint by checkpoint, adding distance separating each other in a quite rough computation
-	 // And stop when we see that our pod can reach it before opponent pod
+	{
+		return opponent.Position() + opponent.Speed()* 3.f;
+	}
+	// Because our interceptor is not able to reach the opponent pod at this stage, we'll check where we can wait it
+	// To do it, we'll check checkpoint by checkpoint, adding distance separating each other in a quite rough computation
+	// And stop when we see that our pod can reach it before opponent pod
 	float opponentDistance = 0;
 	Vector2<int> opponentCheckpointPositionToReach = opponent.Position();
 	for (int i = 0; i < aSimulationEntry.checkpointManager.NumberOfCheckpoint(); i++)
@@ -734,7 +784,6 @@ inline bool InterceptorPodStrategy::ShouldUseShield(Pod& pod, const SimulationEn
 
 	if (Collision(pod, opponentPod1))
 	{
-		std::cerr << "Interceptor collision with opponentPod1" << std::endl;
 		if (BeneficialCollision(pod, opponentPod1))
 			return true;
 
@@ -743,7 +792,6 @@ inline bool InterceptorPodStrategy::ShouldUseShield(Pod& pod, const SimulationEn
 
 	if (Collision(pod, opponentPod2))
 	{
-		std::cerr << "Interceptor collision with opponentPod2" << std::endl;
 		if (BeneficialCollision(pod, opponentPod2))
 			return true;
 
